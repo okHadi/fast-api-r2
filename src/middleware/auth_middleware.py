@@ -1,30 +1,31 @@
 from fastapi import Request, HTTPException, status
 from fastapi.security import HTTPBearer
 from typing import Optional
+from ..utils.settings import settings
 
 
 security = HTTPBearer()
 
 
 async def auth_middleware(request: Request) -> Optional[str]:
-    auth_header = request.headers.get("Authorization")
+    api_key_header = request.headers.get("X-API-Key")
 
-    if not auth_header:
+    if not api_key_header:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Missing authorization header"
+            detail="Missing API key header"
         )
 
     try:
-        scheme, token = auth_header.split()
-        if scheme.lower() != "bearer":
+        if api_key_header != settings.api_key:
             raise HTTPException(
                 status_code=status.HTTP_401_UNAUTHORIZED,
-                detail="Invalid authorization scheme"
+                detail="Invalid API key"
             )
-        return token
+        return api_key_header
+
     except ValueError:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Invalid authorization header format"
+            detail="Invalid API key format"
         )
