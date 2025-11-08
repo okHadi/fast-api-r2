@@ -1,6 +1,6 @@
 # https://www.sheshbabu.com/posts/fastapi-without-orm-getting-started-with-asyncpg/
 import asyncpg
-from utils.settings import settings
+from .utils.settings import settings
 
 
 DATABASE_URL = settings.database_url

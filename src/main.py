@@ -1,7 +1,8 @@
 import datetime
 from fastapi import FastAPI
 from contextlib import asynccontextmanager
-from database import database
+from .database import database
+from .routers.routes import register_routes
 
 
 @asynccontextmanager
@@ -17,6 +18,8 @@ app = FastAPI(
     version="1.0.0",
     lifespan=lifespan
 )
+
+register_routes(app)
 
 
 @app.get("/health", status_code=200, description="Simple health check endpoint")

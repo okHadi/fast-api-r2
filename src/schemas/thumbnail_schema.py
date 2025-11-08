@@ -2,7 +2,7 @@ from pydantic import BaseModel
 from datetime import datetime
 
 
-class Thumbnails(BaseModel):
+class Thumbnail(BaseModel):
     id: str
     file_key: str
     url: str
