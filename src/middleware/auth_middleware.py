@@ -18,6 +18,7 @@ async def auth_middleware(request: Request) -> Optional[str]:
 
     try:
         if api_key_header != settings.api_key:
+            print("Invalid API key:", api_key_header)
             raise HTTPException(
                 status_code=status.HTTP_401_UNAUTHORIZED,
                 detail="Invalid API key"

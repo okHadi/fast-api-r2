@@ -9,6 +9,7 @@ import uvicorn
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     await database.connect()
+    await database.create_tables()
     yield
     await database.disconnect()
 
