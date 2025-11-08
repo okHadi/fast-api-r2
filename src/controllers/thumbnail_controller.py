@@ -7,19 +7,37 @@ from ..utils.settings import settings
 
 async def get_thumbnails(request: Request) -> Dict[str, Any]:
     try:
-        bucket = s3.Bucket('thumbnails-bucket')
+        conn = await database.pool.acquire()
+        try:
+            query = "SELECT id, file_key, url, created_at, updated_at FROM thumbnails ORDER BY created_at DESC LIMIT $1"
+            rows = await conn.fetch(query, request.query_params.get("limit", 100))
 
-        return {
-            "success": True,
-            "message": "Thumbnails retrieved successfully",
-            "data": []
-        }
+            thumbnails = [
+                {
+                    "id": row["id"],
+                    "file_key": row["file_key"],
+                    "url": row["url"],
+                    "created_at": row["created_at"].isoformat(),
+                    "updated_at": row["updated_at"].isoformat()
+                }
+                for row in rows
+            ]
+
+            return {
+                "success": True,
+                "message": "Thumbnails retrieved successfully",
+                "data": thumbnails
+            }
+        finally:
+            await database.pool.release(conn)
+
     except Exception as e:
         return {
             "success": False,
             "message": "Error retrieving thumbnails",
             "data": str(e)
         }
+
 
 # https://fastapi.tiangolo.com/tutorial/request-files/#multiple-file-uploads
 
@@ -35,7 +53,7 @@ async def upload_thumbnails(files: list[UploadFile]):
 
         # some validation checks
         for file in files:
-            if file.content_type not in ["image/jpeg", "image/png"]:
+            if file.content_type not in ["image/jpeg", "image/png", "image/jpg", "image/webp"]:
                 return {
                     "success": False,
                     "message": f"Invalid file type: {file.content_type}. Only JPEG and PNG are allowed.",
