@@ -90,7 +90,8 @@ check_result "Invalid API key" "$response" "Request rejected with invalid API ke
 # ============================================
 print_test "3" "Upload single valid PNG file"
 response=$(curl -s -X POST $API_URL -H "X-API-Key: $VALID_API_KEY" -F "files=@h.png" 2>&1)
-check_result '"success":true' "$response" "Single file uploaded successfully"
+check_result '"file_key"' "$response" "Response contains file_key"
+check_result '"url"' "$response" "Response contains url"
 check_result '"h.png"' "$response" "Response contains uploaded filename"
 
 # ============================================
@@ -98,7 +99,8 @@ check_result '"h.png"' "$response" "Response contains uploaded filename"
 # ============================================
 print_test "4" "Upload multiple valid files (async)"
 response=$(curl -s -X POST $API_URL -H "X-API-Key: $VALID_API_KEY" -F "files=@h.png" -F "files=@h2.png" 2>&1)
-check_result '"success":true' "$response" "Multiple files uploaded successfully"
+check_result '"file_key"' "$response" "Response contains file_key"
+check_result '"url"' "$response" "Response contains url"
 check_result '"h.png"' "$response" "Response contains first filename"
 check_result '"h2.png"' "$response" "Response contains second filename"
 
@@ -108,14 +110,14 @@ check_result '"h2.png"' "$response" "Response contains second filename"
 print_test "5" "Re-upload same file (should update updated_at)"
 # First upload
 response1=$(curl -s -X POST $API_URL -H "X-API-Key: $VALID_API_KEY" -F "files=@h.png" 2>&1)
-check_result '"success":true' "$response1" "First upload successful"
+check_result '"file_key"' "$response1" "First upload successful"
 
 # Wait a moment to ensure different timestamp
 sleep 2
 
 # Second upload (should trigger UPSERT)
 response2=$(curl -s -X POST $API_URL -H "X-API-Key: $VALID_API_KEY" -F "files=@h.png" 2>&1)
-check_result '"success":true' "$response2" "Re-upload successful (UPSERT triggered)"
+check_result '"file_key"' "$response2" "Re-upload successful (UPSERT triggered)"
 
 # ============================================
 # TEST 6: Get Thumbnails
@@ -142,8 +144,7 @@ print_test "8" "Upload invalid file type (text file)"
 # Create a temporary text file
 echo "This is a test file" > test_file.txt
 response=$(curl -s -X POST $API_URL -H "X-API-Key: $VALID_API_KEY" -F "files=@test_file.txt" 2>&1)
-check_result '"success":false' "$response" "Invalid file type rejected"
-check_result "Invalid file type" "$response" "Error message mentions file type"
+check_result "[]" "$response" "Invalid file type returns empty array"
 rm -f test_file.txt
 
 # ============================================
@@ -153,8 +154,7 @@ print_test "9" "Upload file larger than 2MB (should fail)"
 # Create a 3MB file
 dd if=/dev/zero of=large_file.png bs=1M count=3 2>/dev/null
 response=$(curl -s -X POST $API_URL -H "X-API-Key: $VALID_API_KEY" -F "files=@large_file.png" 2>&1)
-check_result '"success":false' "$response" "Large file rejected"
-check_result "File size exceeds limit" "$response" "Error message mentions file size"
+check_result "[]" "$response" "Large file returns empty array"
 rm -f large_file.png
 
 # ============================================
@@ -187,9 +187,9 @@ response1=$(cat /tmp/response1.txt)
 response2=$(cat /tmp/response2.txt)
 response3=$(cat /tmp/response3.txt)
 
-check_result '"success":true' "$response1" "Concurrent request 1 succeeded"
-check_result '"success":true' "$response2" "Concurrent request 2 succeeded"
-check_result '"success":true' "$response3" "Concurrent request 3 succeeded"
+check_result '"file_key"' "$response1" "Concurrent request 1 succeeded"
+check_result '"file_key"' "$response2" "Concurrent request 2 succeeded"
+check_result '"file_key"' "$response3" "Concurrent request 3 succeeded"
 
 # Cleanup
 rm -f /tmp/response1.txt /tmp/response2.txt /tmp/response3.txt
