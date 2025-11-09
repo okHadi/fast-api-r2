@@ -1,11 +1,12 @@
 from fastapi import Request, UploadFile, File
-from typing import Dict, Any
+from typing import Dict, Any, List
 from ..utils.boto3 import get_s3_client
 from ..database import database
 from ..utils.settings import settings
 
 
 async def get_thumbnails(request: Request) -> Dict[str, Any]:
+    """Retrieve thumbnails from database with optional limit."""
     try:
         conn = await database.pool.acquire()
         try:
@@ -38,12 +39,13 @@ async def get_thumbnails(request: Request) -> Dict[str, Any]:
             "data": str(e)
         }
 
-
 # https://fastapi.tiangolo.com/tutorial/request-files/#multiple-file-uploads
 
 
-async def upload_thumbnails(files: list[UploadFile]):
+async def upload_thumbnails(files: list[UploadFile]) -> List[Dict[str, str]]:
+    """Upload multiple image files to R2 and store metadata in database."""
     try:
+        # validation checks
         if len(files) == 0:
             return {
                 "success": False,
@@ -51,7 +53,6 @@ async def upload_thumbnails(files: list[UploadFile]):
                 "data": None
             }
 
-        # some validation checks
         for file in files:
             if file.content_type not in ["image/jpeg", "image/png", "image/jpg", "image/webp"]:
                 return {
@@ -66,7 +67,7 @@ async def upload_thumbnails(files: list[UploadFile]):
                     "data": None
                 }
 
-        print(files)
+        uploaded_files = []
 
         async with get_s3_client() as s3:
             try:
@@ -84,6 +85,7 @@ async def upload_thumbnails(files: list[UploadFile]):
                         ContentType=file.content_type
                     )
 
+                    file_url = f"https://{settings.r2_endpoint_url}/thumbnails/{file.filename}"
                     # upsert
                     query = """
                         INSERT INTO thumbnails (file_key, url, created_at, updated_at) 
@@ -91,22 +93,23 @@ async def upload_thumbnails(files: list[UploadFile]):
                         ON CONFLICT (file_key) 
                         DO UPDATE SET updated_at = NOW()
                     """
-                    await conn.execute(query, file.filename, f"https://{settings.r2_endpoint_url}/thumbnails/{file.filename}")
+                    await conn.execute(query, file.filename, file_url)
+
+                    uploaded_files.append({
+                        "file_key": file.filename,
+                        "url": file_url
+                    })
 
                 await transaction.commit()
                 await database.pool.release(conn)
 
-                return {
-                    "success": True,
-                    "message": "Thumbnails uploaded successfully",
-                    "data": [file.filename for file in files]
-                }
+                return uploaded_files
             except Exception as e:
                 await transaction.rollback()
                 await database.pool.release(conn)
                 return {
                     "success": False,
-                    "message": "Error uploading files to R2",
+                    "message": "Error during upload transaction",
                     "data": str(e)
                 }
 

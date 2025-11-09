@@ -8,6 +8,7 @@ security = HTTPBearer()
 
 
 async def auth_middleware(request: Request) -> Optional[str]:
+    """Validate API key from request headers."""
     api_key_header = request.headers.get("X-API-Key")
 
     if not api_key_header:

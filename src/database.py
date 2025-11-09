@@ -7,14 +7,17 @@ DATABASE_URL = settings.database_url
 
 
 class Database:
+    """Database connection manager for PostgreSQL."""
+
     def __init__(self, database_url: str):
         self.database_url = database_url
 
     async def connect(self):
+        """Establish database connection pool."""
         self.pool = await asyncpg.create_pool(self.database_url)
 
-    # create the thumbnails table
     async def create_tables(self):
+        """Create thumbnails table if it doesn't exist."""
         async with self.pool.acquire() as conn:
             await conn.execute("""
             CREATE TABLE IF NOT EXISTS thumbnails (
@@ -27,6 +30,7 @@ class Database:
             """)
 
     async def disconnect(self):
+        """Close database connection pool."""
         self.pool.close()
 
 
