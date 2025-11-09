@@ -19,7 +19,7 @@ class Database:
             await conn.execute("""
             CREATE TABLE IF NOT EXISTS thumbnails (
                 id SERIAL PRIMARY KEY,
-                file_key TEXT NOT NULL,
+                file_key TEXT NOT NULL UNIQUE,
                 url TEXT NOT NULL,
                 created_at TIMESTAMP DEFAULT NOW(),
                 updated_at TIMESTAMP DEFAULT NOW()

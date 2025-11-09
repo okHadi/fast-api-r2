@@ -1,6 +1,6 @@
 from fastapi import Request, UploadFile, File
 from typing import Dict, Any
-from ..utils.boto3 import s3
+from ..utils.boto3 import get_s3_client
 from ..database import database
 from ..utils.settings import settings
 
@@ -67,32 +67,48 @@ async def upload_thumbnails(files: list[UploadFile]):
                 }
 
         print(files)
-        bucket = s3.Bucket('thumbnails')
-        try:
-            conn = await database.pool.acquire()
-            transaction = conn.transaction()
-            await transaction.start()
-            for file in files:
-                bucket.upload_fileobj(
-                    file.file,
-                    file.filename,
-                    ExtraArgs={"ContentType": file.content_type}
-                )
-                query = "INSERT INTO thumbnails (file_key, url, created_at, updated_at) VALUES ($1, $2, NOW(), NOW())"
-                await conn.execute(query, file.filename, f"https://{settings.r2_endpoint_url}/thumbnails/{file.filename}")
-            await transaction.commit()
-            await database.pool.release(conn)
-            return {
-                "success": True,
-                "message": "Thumbnails uploaded successfully",
-                "data": [file.filename for file in files]
-            }
-        except Exception as e:
-            return {
-                "success": False,
-                "message": "Error uploading files to R2",
-                "data": str(e)
-            }
+
+        async with get_s3_client() as s3:
+            try:
+                conn = await database.pool.acquire()
+                transaction = conn.transaction()
+                await transaction.start()
+
+                for file in files:
+                    file_content = await file.read()
+
+                    await s3.put_object(
+                        Bucket="thumbnails",
+                        Key=file.filename,
+                        Body=file_content,
+                        ContentType=file.content_type
+                    )
+
+                    # upsert
+                    query = """
+                        INSERT INTO thumbnails (file_key, url, created_at, updated_at) 
+                        VALUES ($1, $2, NOW(), NOW())
+                        ON CONFLICT (file_key) 
+                        DO UPDATE SET updated_at = NOW()
+                    """
+                    await conn.execute(query, file.filename, f"https://{settings.r2_endpoint_url}/thumbnails/{file.filename}")
+
+                await transaction.commit()
+                await database.pool.release(conn)
+
+                return {
+                    "success": True,
+                    "message": "Thumbnails uploaded successfully",
+                    "data": [file.filename for file in files]
+                }
+            except Exception as e:
+                await transaction.rollback()
+                await database.pool.release(conn)
+                return {
+                    "success": False,
+                    "message": "Error uploading files to R2",
+                    "data": str(e)
+                }
 
     except Exception as e:
         return {

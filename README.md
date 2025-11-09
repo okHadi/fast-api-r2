@@ -2,6 +2,17 @@
 
 Demo Fast API that connects with SQL and R2.
 
+### Local setup
+
+Requirements: Python 3.12
+
+```bash
+python3 -m venv venv
+source venv/bin/activate # if on unix
+pip install --upgrade -r requirements.txt
+fastapi dev src/main.py
+```
+
 ### Testing
 
 Using curl:
