@@ -85,7 +85,7 @@ async def upload_thumbnails(files: list[UploadFile]) -> List[Dict[str, str]]:
                         ContentType=file.content_type
                     )
 
-                    file_url = f"https://{settings.r2_endpoint_url}/thumbnails/{file.filename}"
+                    file_url = f"{settings.r2_endpoint_url}/thumbnails/{file.filename}"
                     # upsert
                     query = """
                         INSERT INTO thumbnails (file_key, url, created_at, updated_at) 
